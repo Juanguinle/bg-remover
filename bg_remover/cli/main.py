@@ -73,8 +73,10 @@ def cli(ctx, config, log_level, log_file):
 @click.option('--batch-size', type=int, help='Batch size for parallel processing')
 @click.option('--quality', type=click.Choice(['low', 'medium', 'high']), help='Processing quality')
 @click.option('--overwrite', is_flag=True, help='Overwrite existing output files')
+@click.option('--format', type=click.Choice(['png', 'jpg', 'jpeg']), help='Output format')
+
 @click.pass_context
-def process(ctx, input, output, model, device, batch_size, quality, overwrite):
+def process(ctx, input, output, model, device, batch_size, quality, overwrite, format):
     """Process all images in a folder"""
     
     config = ctx.obj['config']
@@ -94,6 +96,8 @@ def process(ctx, input, output, model, device, batch_size, quality, overwrite):
         config.set(f'models.{config.get("processing.model")}.quality', quality)
     if overwrite:
         config.set('processing.overwrite_existing', True)
+    if format:
+        config.set('processing.output_format', format)
     
     # Initialize processor
     global processor
@@ -178,8 +182,9 @@ def process(ctx, input, output, model, device, batch_size, quality, overwrite):
 @click.option('--recursive', is_flag=True, help='Monitor subdirectories recursively')
 @click.option('--process-existing', is_flag=True, help='Process existing files before monitoring')
 @click.option('--new-only', is_flag=True, help='Only monitor for new files, skip existing')
+@click.option('--format', type=click.Choice(['png', 'jpg', 'jpeg']), help='Output format')
 @click.pass_context
-def monitor(ctx, input, model, device, recursive, process_existing, new_only):
+def monitor(ctx, input, model, device, recursive, process_existing, new_only, format):
     """Monitor folder for new images and process them automatically"""
     
     config = ctx.obj['config']
@@ -193,6 +198,8 @@ def monitor(ctx, input, model, device, recursive, process_existing, new_only):
         config.set('processing.device', device)
     if recursive:
         config.set('monitoring.recursive', True)
+    if format:
+        config.set('processing.output_format', format)
     
     # Initialize components
     global processor, monitor

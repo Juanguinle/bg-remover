@@ -1,0 +1,46 @@
+logging:
+  backup_count: 5
+  file: bg_remover.log
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+  level: INFO
+  max_size: 10MB
+models:
+  rembg:
+    device: auto
+    enabled: true
+    model_name: u2net
+    options:
+      quality: high
+    quality: high
+  sam:
+    device: auto
+    enabled: true
+    model_type: vit_b
+    options: {}
+  transparent-background:
+    device: auto
+    enabled: true
+    mode: base-nightly
+    options: {}
+    quality: high
+monitoring:
+  debounce_seconds: 1.0
+  enabled: true
+  recursive: false
+processing:
+  batch_size: 8
+  device: cpu
+  file_extensions:
+  - .jpg
+  - .jpeg
+  - .png
+  - .bmp
+  - .tiff
+  file_stability_timeout: 2.0
+  input_folder: ./input
+  model: rembg
+  output_folder: ./output
+  overwrite_existing: false
+  preserve_original: true
+  processed_folder: ./processed
+  quality: high

@@ -1,0 +1,35 @@
+---
+name: Windows Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  windows-test:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9
+    
+    - name: Install dependencies (Windows-specific)
+      run: |
+        python -m pip install --upgrade pip
+        pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+        pip install transparent-background==1.2.5 --no-deps
+        pip install easydict kornia opencv-python pyvirtualcam
+        pip install rembg
+        pip install -e .
+    
+    - name: Test Windows-specific functionality
+      run: |
+        bg-remover info
+        bg-remover test --model transparent-background --device cpu
+        bg-remover test --model rembg --device cpu

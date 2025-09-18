@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.class
+*.so
+build/
+dist/
+*.egg-info/
+.Python
+venv/
+env/
+bg_remover_env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Application data
+input/
+output/
+processed/
+*.log
+config.yaml
+local_config.*
+
+# Model cache
+.cache/
+model_cache/
+*.pth
+*.pt
+*.onnx

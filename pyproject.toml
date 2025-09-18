@@ -1,0 +1,111 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bg-remover"
+version = "1.0.0"
+description = "Professional background removal application with automatic folder monitoring"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Your Name", email = "your.email@example.com"},
+]
+keywords = ["background-removal", "image-processing", "ai", "computer-vision"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+dependencies = [
+    "torch>=1.9.0",
+    "torchvision>=0.10.0",
+    "opencv-python>=4.5.0",
+    "Pillow>=8.0.0",
+    "numpy>=1.21.0",
+    "watchdog>=2.1.0",
+    "pyyaml>=6.0",
+    "click>=8.0.0",
+    "tqdm>=4.62.0",
+    "psutil>=5.8.0",
+    "easydict>=1.9",
+    "kornia>=0.6.0",
+    "pyvirtualcam>=0.6.0",
+    "rembg>=2.0.0",
+    "onnxruntime>=1.12.0",
+    "transparent-background>=1.2.5",
+]
+
+[project.scripts]
+bg-remover = "bg_remover.cli.main:main"
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["bg_remover"]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = [
+    "transparent_background.*",
+    "rembg.*",
+    "cv2.*",
+    "torch.*",
+    "torchvision.*",
+    "watchdog.*",
+    "psutil.*",
+    "tqdm.*"
+]
+ignore_missing_imports = true
+
+[tool.coverage.run]
+source = ["bg_remover"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "setup.py",
+    "*/venv/*",
+    "*/__pycache__/*"
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:"
+]

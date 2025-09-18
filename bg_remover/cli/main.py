@@ -350,53 +350,6 @@ def test(ctx, model, device):
         sys.exit(1)
 
 @cli.command()
-@click.pass_context
-def config_show(ctx):
-    """Show current configuration"""
-    
-    config = ctx.obj['config']
-    
-    click.echo("=== Current Configuration ===")
-    click.echo(f"Config file: {config.config_path}")
-    click.echo()
-    
-    import yaml
-    click.echo(yaml.dump(config.config, default_flow_style=False, indent=2))
-
-@cli.command()
-@click.argument('key')
-@click.argument('value')
-@click.pass_context
-def config_set(ctx, key, value):
-    """Set configuration value"""
-    
-    config = ctx.obj['config']
-    
-    # Try to parse value as appropriate type
-    try:
-        if value.lower() in ['true', 'false']:
-            value = value.lower() == 'true'
-        elif value.isdigit():
-            value = int(value)
-        elif '.' in value and value.replace('.', '').isdigit():
-            value = float(value)
-    except:
-        pass
-    
-    config.set(key, value)
-    config.save()
-    
-    click.echo(f"Set {key} = {value}")
-
-def main():
-    """Main entry point"""
-    try:
-        cli()
-    except Exception as e:
-        click.echo(f"Fatal error: {e}", err=True)
-        logging.error(f"Fatal error: {e}", exc_info=True)
-        sys.exit(1)
-@cli.command()
 @click.option('--input', '-i', help='Input folder path')
 @click.option('--output', '-o', help='Output folder path')
 @click.option('--models', help='Comma-separated list of models to compare', default='rembg,transparent-background')
@@ -485,7 +438,7 @@ def analyze_results(ctx, output):
     results = {}
     
     for file_path in output_folder.glob("*.png"):
-        # Parse filename: originalname_model_quality_device.png
+        # Parse filename: originalname_model_quality_device_time.png
         parts = file_path.stem.split('_')
         if len(parts) >= 4:
             original_name = '_'.join(parts[:-3])  # Handle original names with underscores
@@ -534,7 +487,104 @@ def analyze_results(ctx, output):
     click.echo(f"Total processed files: {total_files}")
     click.echo(f"Models tested: {', '.join(sorted(models))}")
     click.echo(f"Qualities tested: {', '.join(sorted(qualities))}")
+
+@cli.command()
+@click.pass_context
+def config_show(ctx):
+    """Show current configuration"""
     
+    config = ctx.obj['config']
+    
+    click.echo("=== Current Configuration ===")
+    click.echo(f"Config file: {config.config_path}")
+    click.echo()
+    
+    import yaml
+    click.echo(yaml.dump(config.config, default_flow_style=False, indent=2))
+
+@cli.command()
+@click.argument('key')
+@click.argument('value')
+@click.pass_context
+def config_set(ctx, key, value):
+    """Set configuration value"""
+    
+    config = ctx.obj['config']
+    
+    # Try to parse value as appropriate type
+    try:
+        if value.lower() in ['true', 'false']:
+            value = value.lower() == 'true'
+        elif value.isdigit():
+            value = int(value)
+        elif '.' in value and value.replace('.', '').isdigit():
+            value = float(value)
+    except:
+        pass
+    
+    config.set(key, value)
+    config.save()
+    
+    click.echo(f"Set {key} = {value}")
+
+@cli.command()
+@click.option('--folders', help='Folders to clean (input,output,processed)', default='output,processed')
+@click.option('--confirm', is_flag=True, help='Skip confirmation prompt')
+@click.pass_context
+def clean(ctx, folders, confirm):
+    """Clean output and processed folders"""
+    
+    config = ctx.obj['config']
+    
+    folder_map = {
+        'input': config.get('processing.input_folder'),
+        'output': config.get('processing.output_folder'), 
+        'processed': config.get('processing.processed_folder')
+    }
+    
+    folders_to_clean = [f.strip() for f in folders.split(',')]
+    
+    click.echo("Folders to clean:")
+    total_files = 0
+    for folder_name in folders_to_clean:
+        if folder_name not in folder_map:
+            click.echo(f"Unknown folder: {folder_name}")
+            continue
+            
+        folder_path = Path(folder_map[folder_name])
+        if folder_path.exists():
+            files = list(folder_path.glob('*'))
+            total_files += len(files)
+            click.echo(f"  {folder_name}: {len(files)} files in {folder_path}")
+        else:
+            click.echo(f"  {folder_name}: folder doesn't exist")
+    
+    if total_files == 0:
+        click.echo("No files to clean")
+        return
+    
+    if not confirm:
+        if not click.confirm(f"Delete {total_files} files?"):
+            click.echo("Cancelled")
+            return
+    
+    deleted = 0
+    for folder_name in folders_to_clean:
+        if folder_name not in folder_map:
+            continue
+            
+        folder_path = Path(folder_map[folder_name])
+        if folder_path.exists():
+            for file_path in folder_path.glob('*'):
+                try:
+                    if file_path.is_file():
+                        file_path.unlink()
+                        deleted += 1
+                except Exception as e:
+                    click.echo(f"Error deleting {file_path}: {e}")
+    
+    click.echo(f"Deleted {deleted} files")
+
 @cli.command()
 @click.pass_context
 def configure(ctx):
@@ -557,7 +607,9 @@ def configure(ctx):
         click.echo(f"  7. Preserve Original: {config.get('processing.preserve_original')}")
         click.echo(f"  8. Overwrite Existing: {config.get('processing.overwrite_existing')}")
         
-        if current_model == 'rembg':
+        if current_model == 'transparent-background':
+            click.echo(f"  9. TB Mode: {config.get('models.transparent-background.mode', 'base')}")
+        elif current_model == 'rembg':
             click.echo(f"  9. Rembg Model: {config.get('models.rembg.model_name', 'u2net')}")
         elif current_model == 'sam':
             click.echo(f"  9. SAM Model Type: {config.get('models.sam.model_type', 'vit_b')}")
@@ -567,27 +619,6 @@ def configure(ctx):
         click.echo("  t. Test current model")
         click.echo("  q. Quit")
         click.echo()
-    
-    def select_transparent_bg_mode():
-        if config.get('processing.model') != 'transparent-background':
-            click.echo("This setting only applies to transparent-background model")
-            click.pause()
-            return
-        
-        click.echo("\nTransparent Background modes:")
-        modes = ['base', 'base-nightly']
-        descriptions = ['Stable mode', 'Experimental mode (higher quality, may be unstable)']
-        for i, (mode, desc) in enumerate(zip(modes, descriptions), 1):
-            click.echo(f"  {i}. {mode} - {desc}")
-        
-        choice = click.prompt("\nSelect mode (number)", type=int)
-        if 1 <= choice <= len(modes):
-            selected_mode = modes[choice - 1]
-            config.set('models.transparent-background.mode', selected_mode)
-            click.echo(f"Mode set to: {selected_mode}")
-        else:
-            click.echo("Invalid selection")
-        click.pause()
     
     def select_model():
         click.echo("\nAvailable models:")
@@ -668,6 +699,22 @@ def configure(ctx):
         click.echo(f"{setting_name} set to: {new_value}")
         click.pause()
     
+    def select_transparent_bg_mode():
+        click.echo("\nTransparent Background modes:")
+        modes = ['base', 'base-nightly']
+        descriptions = ['Stable mode', 'Experimental mode (higher quality)']
+        for i, (mode, desc) in enumerate(zip(modes, descriptions), 1):
+            click.echo(f"  {i}. {mode} - {desc}")
+        
+        choice = click.prompt("\nSelect mode (number)", type=int)
+        if 1 <= choice <= len(modes):
+            selected_mode = modes[choice - 1]
+            config.set('models.transparent-background.mode', selected_mode)
+            click.echo(f"Mode set to: {selected_mode}")
+        else:
+            click.echo("Invalid selection")
+        click.pause()
+    
     def select_rembg_model():
         if config.get('processing.model') != 'rembg':
             click.echo("This setting only applies to rembg model")
@@ -746,7 +793,9 @@ def configure(ctx):
         elif choice == '8':
             toggle_boolean('processing.overwrite_existing', 'Overwrite existing')
         elif choice == '9':
-            if config.get('processing.model') == 'rembg':
+            if config.get('processing.model') == 'transparent-background':
+                select_transparent_bg_mode()
+            elif config.get('processing.model') == 'rembg':
                 select_rembg_model()
             elif config.get('processing.model') == 'sam':
                 select_sam_model()
@@ -767,63 +816,14 @@ def configure(ctx):
     
     click.echo("Configuration complete!")
 
-@cli.command()
-@click.option('--folders', help='Folders to clean (input,output,processed)', default='output,processed')
-@click.option('--confirm', is_flag=True, help='Skip confirmation prompt')
-@click.pass_context
-def clean(ctx, folders, confirm):
-    """Clean output and processed folders"""
-    
-    config = ctx.obj['config']
-    
-    folder_map = {
-        'input': config.get('processing.input_folder'),
-        'output': config.get('processing.output_folder'), 
-        'processed': config.get('processing.processed_folder')
-    }
-    
-    folders_to_clean = [f.strip() for f in folders.split(',')]
-    
-    click.echo("Folders to clean:")
-    total_files = 0
-    for folder_name in folders_to_clean:
-        if folder_name not in folder_map:
-            click.echo(f"Unknown folder: {folder_name}")
-            continue
-            
-        folder_path = Path(folder_map[folder_name])
-        if folder_path.exists():
-            files = list(folder_path.glob('*'))
-            total_files += len(files)
-            click.echo(f"  {folder_name}: {len(files)} files in {folder_path}")
-        else:
-            click.echo(f"  {folder_name}: folder doesn't exist")
-    
-    if total_files == 0:
-        click.echo("No files to clean")
-        return
-    
-    if not confirm:
-        if not click.confirm(f"Delete {total_files} files?"):
-            click.echo("Cancelled")
-            return
-    
-    deleted = 0
-    for folder_name in folders_to_clean:
-        if folder_name not in folder_map:
-            continue
-            
-        folder_path = Path(folder_map[folder_name])
-        if folder_path.exists():
-            for file_path in folder_path.glob('*'):
-                try:
-                    if file_path.is_file():
-                        file_path.unlink()
-                        deleted += 1
-                except Exception as e:
-                    click.echo(f"Error deleting {file_path}: {e}")
-    
-    click.echo(f"Deleted {deleted} files")
+def main():
+    """Main entry point"""
+    try:
+        cli()
+    except Exception as e:
+        click.echo(f"Fatal error: {e}", err=True)
+        logging.error(f"Fatal error: {e}", exc_info=True)
+        sys.exit(1)
 
 if __name__ == '__main__':
     main()

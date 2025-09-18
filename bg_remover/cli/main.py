@@ -379,8 +379,12 @@ def compare(ctx, input, output, models, qualities):
     # Store original settings
     original_model = config.get('processing.model')
     original_quality = config.get(f'models.{original_model}.quality', 'high')
+    original_preserve = config.get('processing.preserve_original')
     
     try:
+        # FORCE preserve_original to FALSE during comparisons to keep files in input
+        config.set('processing.preserve_original', False)
+        
         total_combinations = len(model_list) * len(quality_list)
         current_combo = 0
         
@@ -411,15 +415,35 @@ def compare(ctx, input, output, models, qualities):
                 results = processor.process_folder(input_folder, progress_callback)
                 
                 click.echo(f"  Results: {results['processed']} processed, {results['failed']} failed, {results['skipped']} skipped")
+        
+        # After ALL comparisons are done, handle original files according to user's preference
+        if original_preserve:
+            click.echo(f"\nMoving original files to processed folder...")
+            from pathlib import Path
+            import shutil
+            
+            input_path = Path(input_folder)
+            processed_path = Path(config.get('processing.processed_folder'))
+            processed_path.mkdir(parents=True, exist_ok=True)
+            
+            moved_count = 0
+            for file_path in input_path.iterdir():
+                if file_path.is_file():
+                    dest_path = processed_path / file_path.name
+                    shutil.move(str(file_path), str(dest_path))
+                    moved_count += 1
+            
+            click.echo(f"Moved {moved_count} original files to {processed_path}")
                 
     except KeyboardInterrupt:
         click.echo("\nComparison interrupted by user")
     except Exception as e:
         click.echo(f"Error during comparison: {e}", err=True)
     finally:
-        # Restore original settings
+        # Restore ALL original settings
         config.set('processing.model', original_model)
         config.set(f'models.{original_model}.quality', original_quality)
+        config.set('processing.preserve_original', original_preserve)
 
 @cli.command()
 @click.option('--output', '-o', help='Output folder to analyze')
